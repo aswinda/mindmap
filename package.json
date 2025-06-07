@@ -1,0 +1,28 @@
+{
+  "name": "mindmap-app",
+  "version": "1.0.0",
+  "description": "Interactive mindmap application with TypeScript",
+  "main": "dist/script.js",
+  "scripts": {
+    "build": "tsc",
+    "build:prod": "tsc --sourceMap false --declaration false --declarationMap false",
+    "watch": "tsc --watch",
+    "dev": "tsc --watch",
+    "serve": "python3 -m http.server 8000",
+    "dev:server": "npm run watch & npm run serve",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.8.3"
+  },
+  "keywords": [
+    "mindmap",
+    "typescript",
+    "interactive",
+    "notes"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

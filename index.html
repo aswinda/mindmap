@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Mindmap</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="toolbar">
+        <h1>Mindmap</h1>
+        <div class="controls">
+            <button id="themeBtn" class="btn btn-secondary">Roman Theme</button>
+            <button id="toggleNotesBtn" class="btn btn-secondary">Show Notes</button>
+            <button id="resetCanvasBtn" class="btn btn-secondary">Reset View</button>
+            <button id="saveBtn" class="btn btn-primary">Save</button>
+            <button id="loadBtn" class="btn btn-secondary">Load</button>
+            <button id="exportBtn" class="btn btn-secondary">Export</button>
+            <input type="file" id="fileInput" accept=".json" style="display: none;">
+            <button id="helpBtn" class="btn btn-info">Help</button>
+        </div>
+    </div>
+
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>How to use the Mindmap</h2>
+            <ul>
+                <li><strong>Enter:</strong> Create a sibling node</li>
+                <li><strong>Ctrl + Enter:</strong> Create a child node</li>
+                <li><strong>Click on a node:</strong> Select and edit</li>
+                <li><strong>Double-click:</strong> Add/edit notes</li>
+                <li><strong>Show Notes button:</strong> Toggle note visibility</li>
+                <li><strong>Theme button:</strong> Switch between Modern and Roman themes</li>
+                <li><strong>Delete key:</strong> Remove selected node</li>
+                <li><strong>Arrow keys:</strong> Navigate between nodes</li>
+                <li><strong>Left mouse drag:</strong> Move nodes around</li>
+                <li><strong>Middle mouse drag:</strong> Pan the entire canvas</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="noteModal" class="modal">
+        <div class="modal-content">
+            <span class="close note-close">&times;</span>
+            <h3>Add Note</h3>
+            <textarea id="noteTextarea" placeholder="Enter your note here..."></textarea>
+            <div class="modal-buttons">
+                <button id="saveNoteBtn" class="btn btn-primary">Save</button>
+                <button id="cancelNoteBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mindmapContainer">
+        <svg id="mindmapSvg">
+            <!-- Lines will be drawn here -->
+        </svg>
+        <div id="nodesContainer">
+            <!-- Nodes will be added here -->
+        </div>
+    </div>
+
+    <script src="dist/script.js"></script>
+</body>
+
+</html>
