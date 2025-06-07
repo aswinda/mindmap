@@ -18,7 +18,7 @@
 }
 
 /* Roman Theme */
-body.roman-theme {
+body.theme-roman {
     --bg-primary: #f5f1eb;
     --bg-secondary: #faf7f2;
     --border-color: #d4b996;
@@ -50,89 +50,171 @@ body {
     transition: all 0.3s ease;
 }
 
-body.roman-theme {
+body.theme-roman {
     font-family: 'Times New Roman', Georgia, serif;
 }
 
 .toolbar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    padding: 12px 20px;
     background: var(--bg-secondary);
-    padding: 0.75rem 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-    box-shadow: 0 1px 3px var(--shadow-light);
+    border-bottom: 2px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-light);
+    gap: 20px;
+    position: relative;
+    z-index: 1000;
 }
 
 .toolbar h1 {
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 24px;
     font-weight: 600;
     margin: 0;
 }
 
 .controls {
     display: flex;
-    gap: 0.5rem;
+    gap: 8px;
+    align-items: center;
 }
 
 .btn {
-    padding: 0.4rem 0.8rem;
-    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-weight: 400;
-    transition: all 0.15s ease;
-    font-size: 0.85rem;
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--shadow-medium);
+}
+
+.btn:active {
+    transform: translateY(0);
 }
 
 .btn-primary {
     background: var(--accent-primary);
     color: white;
-    border-color: var(--accent-primary);
 }
 
 .btn-primary:hover {
     background: var(--accent-hover);
-    border-color: var(--accent-hover);
 }
 
 .btn-secondary {
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-    background: var(--bg-primary);
-    border-color: var(--border-hover);
-}
-
-.btn-info {
     background: var(--bg-secondary);
-    color: var(--text-secondary);
+    border-color: var(--border-hover);
 }
 
-.btn-info:hover {
-    background: var(--bg-primary);
-    border-color: var(--border-hover);
+.btn-success {
+    background: #10b981;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #059669;
 }
 
 .btn-warning {
     background: #f59e0b;
     color: white;
-    border-color: #f59e0b;
 }
 
 .btn-warning:hover {
     background: #d97706;
-    border-color: #d97706;
 }
 
-.btn-warning.active {
-    background: #dc2626;
-    border-color: #dc2626;
+.btn-neural {
+    background: #8b5cf6;
+    color: white;
+}
+
+.btn-neural:hover {
+    background: #7c3aed;
+}
+
+.btn-info {
+    background: #06b6d4;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #0891b2;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-primary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    flex: 1;
+    max-width: 300px;
+}
+
+.file-icon {
+    font-size: 16px;
+}
+
+.file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.save-status {
+    font-size: 14px;
+    font-weight: bold;
+    margin-left: auto;
+    transition: all 0.2s ease;
+}
+
+/* Save Status Colors */
+.save-status.saved {
+    color: #10b981;
+}
+
+.save-status.saving {
+    color: #f59e0b;
+    animation: pulse 1s infinite;
+}
+
+.save-status.dirty {
+    color: #ef4444;
+}
+
+.save-status.error {
+    color: #dc2626;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* Neural Network Styles */
@@ -238,7 +320,7 @@ body.roman-theme {
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.roman-theme .mindmap-node.selected {
+.theme-roman .mindmap-node.selected {
     box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.2);
 }
 
@@ -249,7 +331,7 @@ body.roman-theme {
     font-weight: 500;
 }
 
-.roman-theme .mindmap-node.root {
+.theme-roman .mindmap-node.root {
     background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
     font-weight: 600;
     font-style: italic;
@@ -261,9 +343,13 @@ body.roman-theme {
     background: transparent;
     font-size: inherit;
     font-weight: inherit;
-    color: inherit;
+    color: var(--text-primary);
     text-align: center;
     width: 100%;
+}
+
+.mindmap-node.root input {
+    color: white;
 }
 
 .mindmap-node.has-note::after {
@@ -282,7 +368,7 @@ body.roman-theme {
     font-size: 8px;
 }
 
-.roman-theme .mindmap-node.has-note::after {
+.theme-roman .mindmap-node.has-note::after {
     background: var(--accent-primary);
     content: '●';
 }
@@ -306,7 +392,7 @@ body.roman-theme {
     line-height: 1.3;
 }
 
-.roman-theme .note-display {
+.theme-roman .note-display {
     font-style: italic;
     border-radius: 4px;
 }
@@ -348,12 +434,12 @@ body.roman-theme {
     }
 }
 
-.roman-theme .connection-line {
+.theme-roman .connection-line {
     stroke-width: 2;
     stroke-dasharray: 3, 2;
 }
 
-.roman-theme .neural-connection-line {
+.theme-roman .neural-connection-line {
     stroke: #8b4513;
     stroke-dasharray: 4, 4;
 }
@@ -430,7 +516,7 @@ body.roman-theme {
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
-.roman-theme #noteTextarea:focus {
+.theme-roman #noteTextarea:focus {
     box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.1);
 }
 

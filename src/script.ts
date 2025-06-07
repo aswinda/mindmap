@@ -1,4 +1,5 @@
 // Import sticky notes module
+import { FileManager } from './fileManager.js';
 import { StickyNotesManager } from './stickyNotes.js';
 
 // TypeScript interfaces and types for the Mindmap application
@@ -77,6 +78,7 @@ class MindmapApp {
     private currentTheme: Theme = 'modern';
     private autoSaveInterval: number | null = null;
     private stickyNotesManager: StickyNotesManager | null = null;
+    private fileManager: FileManager | null = null;
 
     // Neural connection mode
     private isConnectionMode: boolean = false;
@@ -98,11 +100,12 @@ class MindmapApp {
 
     constructor() {
         this.initializeApp();
+        this.initializeFileManager();
         this.setupEventListeners();
         this.loadTheme();
-        this.loadSession();
-        this.startAutoSave();
         this.initializeStickyNotes();
+        // Start with a new file instead of loading session
+        this.createNewFile();
     }
 
     private initializeApp(): void {
@@ -127,16 +130,25 @@ class MindmapApp {
         document.addEventListener('keydown', (e: KeyboardEvent) => this.handleKeyDown(e));
 
         // Button events
+        // File Management
+        this.getElementByIdSafe('newFileBtn').addEventListener('click', () => {
+            this.createNewFile();
+        });
+        this.getElementByIdSafe('openFileBtn').addEventListener('click', () => {
+            this.openFile();
+        });
+        this.getElementByIdSafe('saveAsBtn').addEventListener('click', () => {
+            this.saveAsFile();
+        });
+
+        // Existing Controls
         this.getElementByIdSafe('themeBtn').addEventListener('click', () => this.toggleTheme());
         this.getElementByIdSafe('toggleNotesBtn').addEventListener('click', () => this.toggleNotesVisibility());
         this.getElementByIdSafe('resetCanvasBtn').addEventListener('click', () => this.resetCanvasPosition());
         this.getElementByIdSafe('connectionModeBtn').addEventListener('click', () => this.toggleConnectionMode());
         this.getElementByIdSafe('removeConnectionBtn').addEventListener('click', () => this.toggleRemoveConnectionMode());
-        this.getElementByIdSafe('saveBtn').addEventListener('click', () => this.saveMindmap());
-        this.getElementByIdSafe('loadBtn').addEventListener('click', () => this.loadMindmap());
         this.getElementByIdSafe('exportBtn').addEventListener('click', () => this.exportMindmap());
         this.getElementByIdSafe('helpBtn').addEventListener('click', () => this.showHelp());
-        this.getElementByIdSafe('fileInput').addEventListener('change', (e: Event) => this.handleFileLoad(e));
 
         // Modal events
         const closeBtn = document.querySelector('.close');
@@ -293,6 +305,27 @@ class MindmapApp {
     }
 
     private handleKeyDown(e: KeyboardEvent): void {
+        // File operation shortcuts (global)
+        if (e.key === 'n' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+            e.preventDefault();
+            this.createNewFile();
+            return;
+        }
+        if (e.key === 'o' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            this.openFile();
+            return;
+        }
+        if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (e.shiftKey) {
+                this.saveAsFile();
+            } else {
+                this.saveCurrentFile();
+            }
+            return;
+        }
+
         if (!this.selectedNode) {
             // Global shortcuts that work without selection
             if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
@@ -865,9 +898,98 @@ class MindmapApp {
         link.click();
     }
 
-    // Session Management
-    private saveSession(): void {
-        const sessionData: SessionData = {
+    // File Management Methods
+    private initializeFileManager(): void {
+        try {
+            this.fileManager = new FileManager();
+
+            // Set up file manager callbacks
+            this.fileManager.setCallbacks(
+                (fileData) => {
+                    this.onFileChanged(fileData);
+                },
+                (status) => {
+                    this.onSaveStatusChanged(status);
+                }
+            );
+        } catch (error) {
+            console.error('Error initializing FileManager:', error);
+        }
+    }
+
+    private createNewFile(): void {
+        if (!this.fileManager) {
+            console.error('FileManager not initialized');
+            return;
+        }
+
+        // Create new file with current mindmap data
+        const currentData = this.getCurrentMindmapData();
+        const fileData = this.fileManager.createNewFile(currentData);
+
+        // Reset the mindmap
+        this.clearMindmap();
+        this.createRootNode();
+
+        // Update UI
+        this.updateFileDisplay();
+    }
+
+    private async openFile(): Promise<void> {
+        if (!this.fileManager) return;
+
+        const fileData = await this.fileManager.openFile();
+        if (fileData) {
+            this.loadMindmapFromFileData(fileData);
+            this.updateFileDisplay();
+        }
+    }
+
+    private async saveAsFile(): Promise<void> {
+        if (!this.fileManager) return;
+
+        const currentData = this.getCurrentMindmapData();
+        const success = await this.fileManager.saveAsFile(currentData);
+        if (success) {
+            this.updateFileDisplay();
+        }
+    }
+
+    private async saveCurrentFile(): Promise<void> {
+        if (!this.fileManager) return;
+
+        const currentData = this.getCurrentMindmapData();
+        await this.fileManager.saveCurrentFile(currentData);
+    }
+
+    private onFileChanged(fileData: any): void {
+        this.loadMindmapFromFileData(fileData);
+        this.updateFileDisplay();
+    }
+
+    private onSaveStatusChanged(status: string): void {
+        const saveStatusElement = document.getElementById('saveStatus');
+        if (saveStatusElement) {
+            saveStatusElement.className = `save-status ${status}`;
+            saveStatusElement.textContent = status === 'saved' ? '●' :
+                status === 'saving' ? '●' :
+                    status === 'dirty' ? '●' : '●';
+        }
+    }
+
+    private updateFileDisplay(): void {
+        if (!this.fileManager) return;
+
+        const currentFileName = document.getElementById('currentFileName');
+        if (currentFileName) {
+            const fileInfo = this.fileManager.getCurrentFileInfo();
+            const fileName = fileInfo?.name || 'Untitled';
+            currentFileName.textContent = fileName;
+        }
+    }
+
+    private getCurrentMindmapData(): any {
+        return {
             nodes: this.nodes.map(node => ({
                 id: node.id,
                 text: node.text,
@@ -882,132 +1004,170 @@ class MindmapApp {
             connections: this.connections,
             nodeIdCounter: this.nodeIdCounter,
             notesVisible: this.notesVisible,
-            lastSaved: new Date().toISOString(),
             canvasOffset: this.canvasOffset,
-            stickyNotes: this.stickyNotesManager?.getStickyNotesData() || []
+            stickyNotes: this.stickyNotesManager ? this.stickyNotesManager.getStickyNotesData() : []
         };
+    }
 
-        localStorage.setItem('mindmap-session', JSON.stringify(sessionData));
+    private loadMindmapFromFileData(fileData: any): void {
+        if (fileData.mindmapData) {
+            this.loadMindmapData(fileData.mindmapData);
+
+            // Restore other state
+            if (fileData.mindmapData.notesVisible !== undefined) {
+                this.notesVisible = fileData.mindmapData.notesVisible;
+                const toggleBtn = this.getElementByIdSafe('toggleNotesBtn');
+                toggleBtn.textContent = this.notesVisible ? 'Hide Notes' : 'Show Notes';
+                if (this.notesVisible) {
+                    this.showAllNotes();
+                } else {
+                    this.hideAllNotes();
+                }
+            }
+
+            if (fileData.mindmapData.canvasOffset) {
+                this.canvasOffset = fileData.mindmapData.canvasOffset;
+                this.applyCanvasTransform();
+            }
+
+            // Load sticky notes
+            if (fileData.mindmapData.stickyNotes && this.stickyNotesManager) {
+                this.stickyNotesManager.loadStickyNotesData(fileData.mindmapData.stickyNotes);
+            }
+        }
+    }
+
+    private clearMindmap(): void {
+        // Clear existing nodes
+        this.nodes.forEach(node => {
+            node.element.remove();
+            node.noteDisplay.remove();
+        });
+        this.nodes = [];
+        this.connections = [];
+        this.svg.innerHTML = '';
+        this.selectedNode = null;
+        this.nodeIdCounter = 0;
+
+        // Clear sticky notes
+        if (this.stickyNotesManager) {
+            // Clear sticky notes - remove all sticky note elements
+            const stickyNotes = document.querySelectorAll('.sticky-note');
+            stickyNotes.forEach(note => note.remove());
+        }
+
+        // Reset canvas
+        this.canvasOffset = { x: 0, y: 0 };
+        this.applyCanvasTransform();
+    }
+
+    // Session Management
+    private saveSession(): void {
+        if (this.fileManager) {
+            this.fileManager.markDirty();
+        } else {
+            // Fallback to localStorage if file manager not available
+            const sessionData: SessionData = {
+                ...this.getCurrentMindmapData(),
+                lastSaved: new Date().toISOString()
+            };
+            localStorage.setItem('mindmapSession', JSON.stringify(sessionData));
+        }
     }
 
     private loadSession(): void {
-        const sessionData = localStorage.getItem('mindmap-session');
+        const sessionData = localStorage.getItem('mindmapSession');
         if (sessionData) {
             try {
                 const data: SessionData = JSON.parse(sessionData);
-                if (data.nodes && data.nodes.length > 0) {
-                    this.loadMindmapData(data);
+                this.loadMindmapData(data);
 
-                    // Restore canvas offset
-                    if (data.canvasOffset) {
-                        this.canvasOffset = data.canvasOffset;
-                        this.applyCanvasTransform();
-                    }
+                // Restore other session state
+                this.nodeIdCounter = data.nodeIdCounter || 0;
+                this.notesVisible = data.notesVisible || false;
 
-                    // Restore notes visibility state
-                    if (data.notesVisible) {
-                        this.notesVisible = true;
-                        this.getElementByIdSafe('toggleNotesBtn').textContent = 'Hide Notes';
-                        this.showAllNotes();
-                    }
+                const toggleBtn = this.getElementByIdSafe('toggleNotesBtn');
+                toggleBtn.textContent = this.notesVisible ? 'Hide Notes' : 'Show Notes';
 
-                    // Restore sticky notes
-                    if (data.stickyNotes && this.stickyNotesManager) {
-                        this.stickyNotesManager.loadStickyNotesData(data.stickyNotes);
-                    }
+                if (this.notesVisible) {
+                    this.showAllNotes();
+                }
 
-                    console.log('Session restored from:', data.lastSaved);
-                    return;
+                if (data.canvasOffset) {
+                    this.canvasOffset = data.canvasOffset;
+                    this.applyCanvasTransform();
+                }
+
+                // Load sticky notes
+                if (data.stickyNotes && this.stickyNotesManager) {
+                    this.stickyNotesManager.loadStickyNotesData(data.stickyNotes);
                 }
             } catch (error) {
                 console.error('Error loading session:', error);
+                this.createRootNode();
             }
+        } else {
+            this.createRootNode();
         }
-
-        // Create default root node if no session data
-        this.createRootNode();
-    }
-
-    private clearSession(): void {
-        localStorage.removeItem('mindmap-session');
-    }
-
-    private startAutoSave(): void {
-        // Auto-save every 30 seconds
-        this.autoSaveInterval = window.setInterval(() => {
-            if (this.nodes.length > 0) {
-                this.saveSession();
-            }
-        }, 30000);
     }
 
     // Theme Management
     private toggleTheme(): void {
         this.currentTheme = this.currentTheme === 'modern' ? 'roman' : 'modern';
-        this.applyTheme();
         this.saveTheme();
-    }
+        this.loadTheme();
 
-    private applyTheme(): void {
-        const body = document.body;
         const themeBtn = this.getElementByIdSafe('themeBtn');
-
-        if (this.currentTheme === 'roman') {
-            body.classList.add('roman-theme');
-            themeBtn.textContent = 'Modern Theme';
-        } else {
-            body.classList.remove('roman-theme');
-            themeBtn.textContent = 'Roman Theme';
-        }
+        themeBtn.textContent = this.currentTheme === 'modern' ? 'Roman Theme' : 'Modern Theme';
     }
 
     private saveTheme(): void {
-        localStorage.setItem('mindmap-theme', this.currentTheme);
+        localStorage.setItem('mindmapTheme', this.currentTheme);
     }
 
     private loadTheme(): void {
-        const savedTheme = localStorage.getItem('mindmap-theme');
-        if (savedTheme && (savedTheme === 'modern' || savedTheme === 'roman')) {
-            this.currentTheme = savedTheme as Theme;
+        const savedTheme = localStorage.getItem('mindmapTheme') as Theme;
+        if (savedTheme) {
+            this.currentTheme = savedTheme;
         }
-        this.applyTheme();
+
+        document.body.className = `theme-${this.currentTheme}`;
+
+        const themeBtn = this.getElementByIdSafe('themeBtn');
+        themeBtn.textContent = this.currentTheme === 'modern' ? 'Roman Theme' : 'Modern Theme';
     }
 
+    // Canvas Management
     private handleCanvasMouseDown(e: MouseEvent): void {
-        // Only handle middle mouse button (button 1) for canvas panning
-        if (e.button === 1) {
-            e.preventDefault();
-            this.isCanvasPanning = true;
-            this.canvasDragStart.x = e.clientX;
-            this.canvasDragStart.y = e.clientY;
-            this.mindmapContainer.style.cursor = 'grabbing';
+        // Only start panning if clicking on empty space (not on nodes)
+        if (e.target === this.mindmapContainer || e.target === this.svg || e.target === this.nodesContainer) {
+            if (e.button === 0) { // Left mouse button
+                this.isCanvasPanning = true;
+                this.canvasDragStart.x = e.clientX;
+                this.canvasDragStart.y = e.clientY;
+                this.mindmapContainer.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
         }
     }
 
     private handleCanvasDoubleClick(e: MouseEvent): void {
-        // Only create nodes if not clicking on existing elements
-        const target = e.target as HTMLElement;
-        if (target === this.mindmapContainer || target === this.nodesContainer) {
-            e.preventDefault();
-
-            // Calculate position relative to the canvas offset
-            const containerRect = this.mindmapContainer.getBoundingClientRect();
+        // Create a new root node at the clicked position
+        if (e.target === this.mindmapContainer || e.target === this.svg || e.target === this.nodesContainer) {
+            const containerRect = this.nodesContainer.getBoundingClientRect();
             const x = e.clientX - containerRect.left - this.canvasOffset.x;
             const y = e.clientY - containerRect.top - this.canvasOffset.y;
 
-            // Create a new root node at the clicked position
-            const newNode = this.createNode('New Node', null, x, y);
-            newNode.isRoot = true;
+            const newNode = this.createNode('New Root', null, x, y);
             newNode.element.classList.add('root');
             this.selectNode(newNode);
-
-            // Focus the input for immediate editing
-            const input = newNode.element.querySelector('input') as HTMLInputElement;
-            if (input) {
-                input.focus();
-                input.select();
-            }
         }
+    }
+
+    private resetCanvasPosition(): void {
+        this.canvasOffset = { x: 0, y: 0 };
+        this.applyCanvasTransform();
+        this.saveSession();
     }
 
     private applyCanvasTransform(): void {
@@ -1016,303 +1176,141 @@ class MindmapApp {
         this.svg.style.transform = transform;
     }
 
-    private resetCanvasPosition(): void {
-        this.canvasOffset.x = 0;
-        this.canvasOffset.y = 0;
-        this.applyCanvasTransform();
-        this.saveSession();
-    }
-
-    // Neural Network Connection Methods
+    // Neural Connection Mode
     private toggleConnectionMode(): void {
         this.isConnectionMode = !this.isConnectionMode;
+        this.isRemoveConnectionMode = false;
+
         const connectionBtn = this.getElementByIdSafe('connectionModeBtn');
+        const removeBtn = this.getElementByIdSafe('removeConnectionBtn');
 
         if (this.isConnectionMode) {
-            connectionBtn.textContent = 'Exit Connection Mode';
+            connectionBtn.textContent = 'Exit Neural Mode';
             connectionBtn.classList.add('active');
             this.mindmapContainer.style.cursor = 'crosshair';
-            this.connectionStartNode = null;
         } else {
             connectionBtn.textContent = 'Neural Connect Mode';
             connectionBtn.classList.remove('active');
-            this.mindmapContainer.style.cursor = 'default';
+            this.mindmapContainer.style.cursor = '';
             this.connectionStartNode = null;
-            // Clear connection highlighting
-            this.nodes.forEach(node => {
-                node.element.classList.remove('connection-start', 'connection-candidate');
-            });
         }
+
+        removeBtn.classList.remove('active');
     }
 
     private toggleRemoveConnectionMode(): void {
         this.isRemoveConnectionMode = !this.isRemoveConnectionMode;
+        this.isConnectionMode = false;
+
         const removeBtn = this.getElementByIdSafe('removeConnectionBtn');
+        const connectionBtn = this.getElementByIdSafe('connectionModeBtn');
 
         if (this.isRemoveConnectionMode) {
-            // Turn off connection mode if it's on
-            if (this.isConnectionMode) {
-                this.toggleConnectionMode();
-            }
-
             removeBtn.textContent = 'Exit Remove Mode';
             removeBtn.classList.add('active');
             this.mindmapContainer.style.cursor = 'not-allowed';
-
-            // Make connections clickable for removal
-            this.makeConnectionsClickable();
         } else {
             removeBtn.textContent = 'Remove Connections';
             removeBtn.classList.remove('active');
-            this.mindmapContainer.style.cursor = 'default';
-
-            // Remove connection click handlers
-            this.removeConnectionClickHandlers();
-        }
-    }
-
-    private makeConnectionsClickable(): void {
-        // Add click handlers to all connection lines
-        const connectionLines = this.svg.querySelectorAll('path');
-        connectionLines.forEach((line, index) => {
-            line.style.cursor = 'pointer';
-            line.style.strokeWidth = '4'; // Make them thicker for easier clicking
-            line.setAttribute('data-connection-index', index.toString());
-
-            const clickHandler = (e: Event) => {
-                e.stopPropagation();
-                this.removeConnection(index);
-            };
-
-            line.addEventListener('click', clickHandler);
-            // Store the handler so we can remove it later
-            (line as any)._clickHandler = clickHandler;
-        });
-    }
-
-    private removeConnectionClickHandlers(): void {
-        const connectionLines = this.svg.querySelectorAll('path');
-        connectionLines.forEach(line => {
-            line.style.cursor = 'default';
-            // Reset stroke width
-            const isNeural = line.classList.contains('neural-connection-line');
-            line.style.strokeWidth = isNeural ? '2' : '1.5';
-
-            if ((line as any)._clickHandler) {
-                line.removeEventListener('click', (line as any)._clickHandler);
-                delete (line as any)._clickHandler;
-            }
-        });
-    }
-
-    private removeConnection(connectionIndex: number): void {
-        if (connectionIndex >= 0 && connectionIndex < this.connections.length) {
-            const connection = this.connections[connectionIndex];
-            const fromNode = this.findNodeById(connection.fromId);
-            const toNode = this.findNodeById(connection.toId);
-
-            const confirmMessage = `Remove ${connection.type} connection between "${fromNode?.text}" and "${toNode?.text}"?`;
-
-            if (confirm(confirmMessage)) {
-                this.connections.splice(connectionIndex, 1);
-                this.updateConnections();
-                this.saveSession();
-
-                // Refresh clickable connections
-                if (this.isRemoveConnectionMode) {
-                    setTimeout(() => this.makeConnectionsClickable(), 100);
-                }
-            }
-        }
-    }
-
-    private createNeuralConnection(fromNode: MindmapNode, toNode: MindmapNode): void {
-        // Check if connection already exists
-        const existingConnection = this.connections.find(c =>
-            c.fromId === fromNode.id && c.toId === toNode.id ||
-            c.fromId === toNode.id && c.toId === fromNode.id
-        );
-
-        if (existingConnection) {
-            alert('Connection already exists between these nodes');
-            return;
+            this.mindmapContainer.style.cursor = '';
         }
 
-        // Create bidirectional neural connection
-        this.connections.push({
-            fromId: fromNode.id,
-            toId: toNode.id,
-            type: 'neural'
-        });
-
-        this.updateConnections();
-        this.saveSession();
-    }
-
-    private createMultipleRootNodes(): void {
-        // Allow creating root nodes anywhere on canvas
-        const rootCount = this.nodes.filter(n => n.isRoot).length;
-        const newX = 200 + (rootCount * 300);
-        const newY = 300;
-
-        const newRoot = this.createNode('New Root', null, newX, newY);
-        newRoot.element.classList.add('root');
-        this.selectNode(newRoot);
+        connectionBtn.classList.remove('active');
+        connectionBtn.textContent = 'Neural Connect Mode';
+        this.connectionStartNode = null;
     }
 
     private handleNeuralConnection(node: MindmapNode): void {
-        if (!this.isConnectionMode) return;
+        if (this.isRemoveConnectionMode) {
+            this.removeNodeConnections(node);
+            return;
+        }
 
         if (!this.connectionStartNode) {
-            // First node selected
             this.connectionStartNode = node;
             node.element.classList.add('connection-start');
-
-            // Highlight other nodes as connection candidates
-            this.nodes.forEach(n => {
-                if (n.id !== node.id) {
-                    n.element.classList.add('connection-candidate');
-                }
-            });
         } else if (this.connectionStartNode.id !== node.id) {
-            // Second node selected - create connection
-            this.createNeuralConnection(this.connectionStartNode, node);
-
-            // Clear highlighting
-            this.nodes.forEach(n => {
-                n.element.classList.remove('connection-start', 'connection-candidate');
+            // Create neural connection
+            this.connections.push({
+                fromId: this.connectionStartNode.id,
+                toId: node.id,
+                type: 'neural'
             });
 
+            this.updateConnections();
+            this.saveSession();
+
+            // Reset
+            this.connectionStartNode.element.classList.remove('connection-start');
             this.connectionStartNode = null;
         }
     }
 
-    // Node Design Customization Methods
-    private changeNodeColor(nodeId: number, color: string): void {
-        const node = this.findNodeById(nodeId);
-        if (node) {
-            node.color = color;
-            this.applyNodeStyling(node);
+    private removeNodeConnections(node: MindmapNode): void {
+        const initialCount = this.connections.length;
+        this.connections = this.connections.filter(connection =>
+            connection.fromId !== node.id && connection.toId !== node.id
+        );
+
+        if (this.connections.length < initialCount) {
+            this.updateConnections();
             this.saveSession();
         }
     }
 
-    private changeNodeShape(nodeId: number, shape: 'rectangle' | 'circle' | 'diamond'): void {
-        const node = this.findNodeById(nodeId);
-        if (node) {
-            node.shape = shape;
-            this.applyNodeStyling(node);
-            this.saveSession();
-        }
+    private createMultipleRootNodes(): void {
+        const rootNodes = this.nodes.filter(n => n.isRoot);
+        const spacing = 300;
+        const x = rootNodes.length * spacing + 100;
+        const y = 300;
+
+        const newNode = this.createNode('New Root', null, x, y);
+        newNode.element.classList.add('root');
+        this.selectNode(newNode);
     }
 
-    private applyNodeStyling(node: MindmapNode): void {
-        // Remove existing shape classes
-        node.element.classList.remove('node-circle', 'node-diamond', 'node-rectangle');
-
-        // Apply color
-        if (node.color) {
-            node.element.style.backgroundColor = node.color;
-        }
-
-        // Apply shape
-        switch (node.shape) {
-            case 'circle':
-                node.element.classList.add('node-circle');
-                break;
-            case 'diamond':
-                node.element.classList.add('node-diamond');
-                break;
-            case 'rectangle':
-            default:
-                node.element.classList.add('node-rectangle');
-                break;
-        }
-    }
-
+    // Node Customization
     private showNodeCustomizationMenu(nodeId: number): void {
         const node = this.findNodeById(nodeId);
         if (!node) return;
 
-        const colors = ['#ffffff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#98d8c8'];
-        const shapes = ['rectangle', 'circle', 'diamond'] as const;
+        // Simple implementation: cycle through colors
+        const colors = ['#ffffff', '#ffebee', '#e8f5e8', '#fff3e0', '#e3f2fd', '#f3e5f5'];
+        const currentIndex = colors.indexOf(node.color || '#ffffff');
+        const nextIndex = (currentIndex + 1) % colors.length;
 
-        const menu = document.createElement('div');
-        menu.className = 'node-customization-menu';
-        menu.style.cssText = `
-            position: absolute;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1000;
-            min-width: 200px;
-        `;
-
-        // Color section
-        const colorSection = document.createElement('div');
-        colorSection.innerHTML = '<h4 style="margin: 0 0 8px 0; font-size: 12px;">Color:</h4>';
-
-        const colorGrid = document.createElement('div');
-        colorGrid.style.cssText = 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 12px;';
-
-        colors.forEach(color => {
-            const colorBtn = document.createElement('button');
-            colorBtn.style.cssText = `
-                width: 24px; height: 24px; border: 1px solid #ccc; 
-                border-radius: 4px; cursor: pointer; background: ${color};
-            `;
-            colorBtn.onclick = () => {
-                this.changeNodeColor(nodeId, color);
-                document.body.removeChild(menu);
-            };
-            colorGrid.appendChild(colorBtn);
-        });
-
-        // Shape section
-        const shapeSection = document.createElement('div');
-        shapeSection.innerHTML = '<h4 style="margin: 0 0 8px 0; font-size: 12px;">Shape:</h4>';
-
-        shapes.forEach(shape => {
-            const shapeBtn = document.createElement('button');
-            shapeBtn.textContent = shape.charAt(0).toUpperCase() + shape.slice(1);
-            shapeBtn.className = 'btn btn-secondary';
-            shapeBtn.style.cssText = 'margin-right: 4px; padding: 4px 8px; font-size: 10px;';
-            shapeBtn.onclick = () => {
-                this.changeNodeShape(nodeId, shape);
-                document.body.removeChild(menu);
-            };
-            shapeSection.appendChild(shapeBtn);
-        });
-
-        menu.appendChild(colorSection);
-        menu.appendChild(colorGrid);
-        menu.appendChild(shapeSection);
-
-        // Position menu near the node
-        const rect = node.element.getBoundingClientRect();
-        menu.style.left = (rect.right + 10) + 'px';
-        menu.style.top = rect.top + 'px';
-
-        // Close menu when clicking outside
-        const closeMenu = (e: Event) => {
-            if (!menu.contains(e.target as Node)) {
-                document.body.removeChild(menu);
-                document.removeEventListener('click', closeMenu);
-            }
-        };
-
-        document.body.appendChild(menu);
-        setTimeout(() => document.addEventListener('click', closeMenu), 100);
+        node.color = colors[nextIndex];
+        this.applyNodeStyling(node);
+        this.saveSession();
     }
 
+    private applyNodeStyling(node: MindmapNode): void {
+        if (node.color) {
+            node.element.style.backgroundColor = node.color;
+        }
+
+        // Apply shape styling if needed
+        if (node.shape === 'circle') {
+            node.element.style.borderRadius = '50%';
+        } else if (node.shape === 'diamond') {
+            node.element.style.transform += ' rotate(45deg)';
+        } else {
+            node.element.style.borderRadius = '8px';
+        }
+    }
+
+    // Sticky Notes Integration
     private initializeStickyNotes(): void {
-        this.stickyNotesManager = new StickyNotesManager(this.mindmapContainer);
+        const notesContainer = document.getElementById('notesContainer') || this.mindmapContainer;
+        this.stickyNotesManager = new StickyNotesManager(notesContainer);
     }
 }
 
-// Initialize the app when the page loads
+// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new MindmapApp();
+    try {
+        new MindmapApp();
+    } catch (error) {
+        console.error('Error initializing MindmapApp:', error);
+    }
 });

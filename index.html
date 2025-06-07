@@ -11,16 +11,27 @@
 <body>
     <div class="toolbar">
         <h1>Mindmap</h1>
+
+        <!-- Active File Display -->
+        <div class="file-info">
+            <span class="file-icon">📁</span>
+            <span id="currentFileName" class="file-name">Untitled</span>
+            <span id="saveStatus" class="save-status">●</span>
+        </div>
+
         <div class="controls">
+            <!-- File Management -->
+            <button id="newFileBtn" class="btn btn-success" title="New File (Ctrl+N)">New</button>
+            <button id="openFileBtn" class="btn btn-secondary" title="Open File (Ctrl+O)">Open</button>
+            <button id="saveAsBtn" class="btn btn-secondary" title="Save As (Ctrl+Shift+S)">Save As</button>
+
+            <!-- Existing Controls -->
             <button id="themeBtn" class="btn btn-secondary">Roman Theme</button>
             <button id="toggleNotesBtn" class="btn btn-secondary">Show Notes</button>
             <button id="resetCanvasBtn" class="btn btn-secondary">Reset View</button>
             <button id="connectionModeBtn" class="btn btn-neural">Neural Connect Mode</button>
             <button id="removeConnectionBtn" class="btn btn-warning">Remove Connections</button>
-            <button id="saveBtn" class="btn btn-primary">Save</button>
-            <button id="loadBtn" class="btn btn-secondary">Load</button>
             <button id="exportBtn" class="btn btn-secondary">Export</button>
-            <input type="file" id="fileInput" accept=".json" style="display: none;">
             <button id="helpBtn" class="btn btn-info">Help</button>
         </div>
     </div>
