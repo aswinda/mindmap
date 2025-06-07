@@ -202,6 +202,10 @@ body.theme-roman {
     animation: subtle-pulse 2s infinite;
 }
 
+.save-status.auto-saved {
+    color: #10b981;
+}
+
 .save-status.dirty {
     color: #ef4444;
 }

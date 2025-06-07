@@ -104,8 +104,9 @@ class MindmapApp {
         this.setupEventListeners();
         this.loadTheme();
         this.initializeStickyNotes();
-        // Start with a new file instead of loading session
-        this.createNewFile();
+
+        // Load session or create new file
+        this.restoreSession();
     }
 
     private initializeApp(): void {
@@ -948,6 +949,7 @@ class MindmapApp {
         if (fileData) {
             this.loadMindmapFromFileData(fileData);
             this.updateFileDisplay();
+            this.saveActiveFileInfo(); // Save active file info when opening file
         }
     }
 
@@ -958,6 +960,7 @@ class MindmapApp {
         const success = await this.fileManager.saveAsFile(currentData);
         if (success) {
             this.updateFileDisplay();
+            this.saveActiveFileInfo(); // Save active file info when saving as new file
         }
     }
 
@@ -973,6 +976,7 @@ class MindmapApp {
             this.loadMindmapFromFileData(fileData);
         }
         this.updateFileDisplay();
+        this.saveActiveFileInfo(); // Save active file info when file changes
     }
 
     private onSaveStatusChanged(status: string): void {
@@ -982,7 +986,8 @@ class MindmapApp {
             saveStatusElement.textContent = status === 'saved' ? '●' :
                 status === 'saving' ? '●' :
                     status === 'dirty' ? '●' :
-                        status === 'auto-saving' ? '●' : '●';
+                        status === 'auto-saving' ? '●' :
+                            status === 'auto-saved' ? '●' : '●';
         }
     }
 
@@ -1117,6 +1122,42 @@ class MindmapApp {
             }
         } else {
             this.createRootNode();
+        }
+    }
+
+    // Session and Active File Persistence
+    private restoreSession(): void {
+        const activeFileInfo = localStorage.getItem('mindmapActiveFile');
+
+        if (activeFileInfo && this.fileManager) {
+            try {
+                const fileInfo = JSON.parse(activeFileInfo);
+
+                // Try to restore the active file if it was a real file (not just Untitled)
+                if (fileInfo.fileName && fileInfo.fileName !== 'Untitled' && fileInfo.filePath) {
+                    // For now, we'll create a new file and load the session data
+                    // In a full implementation, we'd try to reopen the actual file
+                    console.log('Restoring session for file:', fileInfo.fileName);
+                }
+            } catch (error) {
+                console.error('Error restoring active file:', error);
+            }
+        }
+
+        // Load session data from localStorage as fallback
+        this.loadSession();
+    }
+
+    private saveActiveFileInfo(): void {
+        if (this.fileManager) {
+            const fileInfo = this.fileManager.getCurrentFileInfo();
+            if (fileInfo) {
+                localStorage.setItem('mindmapActiveFile', JSON.stringify({
+                    fileName: fileInfo.name,
+                    filePath: fileInfo.path,
+                    savedAt: new Date().toISOString()
+                }));
+            }
         }
     }
 

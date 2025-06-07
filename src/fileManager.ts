@@ -58,7 +58,7 @@ export class FileManager {
     private debounceTimer: number | null = null; // Debounce timer for auto-save
     private isAutoSaving: boolean = false; // Track auto-save state
     private onFileChanged?: (fileData: MindmapFileData | null) => void;
-    private onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving') => void;
+    private onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving' | 'auto-saved') => void;
     private onAutoSave?: () => any; // Callback to get current data for auto-save
 
     constructor(options: Partial<FileManagerOptions> = {}) {
@@ -74,7 +74,7 @@ export class FileManager {
     // Set callbacks for file and save status changes
     public setCallbacks(
         onFileChanged?: (fileData: MindmapFileData | null) => void,
-        onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving') => void,
+        onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving' | 'auto-saved') => void,
         onAutoSave?: () => any
     ): void {
         this.onFileChanged = onFileChanged;
@@ -203,7 +203,8 @@ export class FileManager {
                     const success = await this.saveToHandle(this.currentFileHandle, data);
                     if (success) {
                         this.isDirty = false;
-                        this.notifyCallbacks(fileData, 'saved');
+                        // Use different status for auto-save completion to prevent UI reload
+                        this.notifyCallbacks(fileData, isAutoSave ? 'auto-saved' : 'saved');
                         return true;
                     }
                 } catch (error) {
@@ -216,7 +217,7 @@ export class FileManager {
             if (isAutoSave && !this.currentFileHandle) {
                 // For auto-save, just mark as saved without downloading
                 this.isDirty = false;
-                this.notifyCallbacks(fileData, 'saved');
+                this.notifyCallbacks(fileData, 'auto-saved');
                 return true;
             }
 
@@ -455,9 +456,9 @@ export class FileManager {
     }
 
     // Notify callbacks about changes
-    private notifyCallbacks(fileData: MindmapFileData | null, status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving'): void {
-        // Only trigger onFileChanged for manual operations, not auto-save
-        if (this.onFileChanged && fileData && status !== 'auto-saving') {
+    private notifyCallbacks(fileData: MindmapFileData | null, status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving' | 'auto-saved'): void {
+        // Only trigger onFileChanged for manual operations, not auto-save operations
+        if (this.onFileChanged && fileData && status !== 'auto-saving' && status !== 'auto-saved') {
             this.onFileChanged(fileData);
         }
         if (this.onSaveStatusChanged) {
