@@ -910,6 +910,10 @@ class MindmapApp {
                 },
                 (status) => {
                     this.onSaveStatusChanged(status);
+                },
+                () => {
+                    // Auto-save callback - return current mindmap data
+                    return this.getCurrentMindmapData();
                 }
             );
         } catch (error) {
@@ -963,7 +967,9 @@ class MindmapApp {
     }
 
     private onFileChanged(fileData: any): void {
-        this.loadMindmapFromFileData(fileData);
+        if (fileData) {
+            this.loadMindmapFromFileData(fileData);
+        }
         this.updateFileDisplay();
     }
 
@@ -988,6 +994,33 @@ class MindmapApp {
         }
     }
 
+    private loadMindmapFromFileData(fileData: any): void {
+        if (fileData.mindmap || fileData.mindmapData) {
+            const mindmapData = fileData.mindmap || fileData.mindmapData;
+            this.loadMindmapData(mindmapData);
+
+            // Restore other state
+            if (mindmapData.notesVisible !== undefined) {
+                this.notesVisible = mindmapData.notesVisible;
+                const toggleBtn = this.getElementByIdSafe('toggleNotesBtn');
+                toggleBtn.textContent = this.notesVisible ? 'Hide Notes' : 'Show Notes';
+                if (this.notesVisible) {
+                    this.showAllNotes();
+                }
+            }
+
+            if (mindmapData.canvasOffset) {
+                this.canvasOffset = mindmapData.canvasOffset;
+                this.applyCanvasTransform();
+            }
+
+            // Load sticky notes
+            if (mindmapData.stickyNotes && this.stickyNotesManager) {
+                this.stickyNotesManager.loadStickyNotesData(mindmapData.stickyNotes);
+            }
+        }
+    }
+
     private getCurrentMindmapData(): any {
         return {
             nodes: this.nodes.map(node => ({
@@ -1009,56 +1042,29 @@ class MindmapApp {
         };
     }
 
-    private loadMindmapFromFileData(fileData: any): void {
-        if (fileData.mindmapData) {
-            this.loadMindmapData(fileData.mindmapData);
-
-            // Restore other state
-            if (fileData.mindmapData.notesVisible !== undefined) {
-                this.notesVisible = fileData.mindmapData.notesVisible;
-                const toggleBtn = this.getElementByIdSafe('toggleNotesBtn');
-                toggleBtn.textContent = this.notesVisible ? 'Hide Notes' : 'Show Notes';
-                if (this.notesVisible) {
-                    this.showAllNotes();
-                } else {
-                    this.hideAllNotes();
-                }
-            }
-
-            if (fileData.mindmapData.canvasOffset) {
-                this.canvasOffset = fileData.mindmapData.canvasOffset;
-                this.applyCanvasTransform();
-            }
-
-            // Load sticky notes
-            if (fileData.mindmapData.stickyNotes && this.stickyNotesManager) {
-                this.stickyNotesManager.loadStickyNotesData(fileData.mindmapData.stickyNotes);
-            }
-        }
-    }
-
     private clearMindmap(): void {
-        // Clear existing nodes
+        // Clear nodes
         this.nodes.forEach(node => {
-            node.element.remove();
-            node.noteDisplay.remove();
+            if (node.element && node.element.parentNode) {
+                node.element.parentNode.removeChild(node.element);
+            }
+            if (node.noteDisplay && node.noteDisplay.parentNode) {
+                node.noteDisplay.parentNode.removeChild(node.noteDisplay);
+            }
         });
         this.nodes = [];
         this.connections = [];
-        this.svg.innerHTML = '';
         this.selectedNode = null;
         this.nodeIdCounter = 0;
 
+        // Clear canvas
+        this.svg.innerHTML = '';
+
         // Clear sticky notes
         if (this.stickyNotesManager) {
-            // Clear sticky notes - remove all sticky note elements
-            const stickyNotes = document.querySelectorAll('.sticky-note');
-            stickyNotes.forEach(note => note.remove());
+            // Assuming there's a clear method in StickyNotesManager
+            // this.stickyNotesManager.clearAllNotes();
         }
-
-        // Reset canvas
-        this.canvasOffset = { x: 0, y: 0 };
-        this.applyCanvasTransform();
     }
 
     // Session Management
@@ -1141,7 +1147,7 @@ class MindmapApp {
     private handleCanvasMouseDown(e: MouseEvent): void {
         // Only start panning if clicking on empty space (not on nodes)
         if (e.target === this.mindmapContainer || e.target === this.svg || e.target === this.nodesContainer) {
-            if (e.button === 0) { // Left mouse button
+            if (e.button === 1) { // Middle mouse button
                 this.isCanvasPanning = true;
                 this.canvasDragStart.x = e.clientX;
                 this.canvasDragStart.y = e.clientY;

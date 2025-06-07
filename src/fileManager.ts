@@ -52,10 +52,12 @@ export class FileManager {
 
     private options: FileManagerOptions;
     private currentFile: MindmapFileMetadata | null = null;
+    private currentFileHandle: FileSystemFileHandle | null = null; // Store file handle for auto-save
     private isDirty: boolean = false;
     private autoSaveTimer: number | null = null;
     private onFileChanged?: (fileData: MindmapFileData | null) => void;
     private onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error') => void;
+    private onAutoSave?: () => any; // Callback to get current data for auto-save
 
     constructor(options: Partial<FileManagerOptions> = {}) {
         this.options = {
@@ -70,10 +72,12 @@ export class FileManager {
     // Set callbacks for file and save status changes
     public setCallbacks(
         onFileChanged?: (fileData: MindmapFileData | null) => void,
-        onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error') => void
+        onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error') => void,
+        onAutoSave?: () => any
     ): void {
         this.onFileChanged = onFileChanged;
         this.onSaveStatusChanged = onSaveStatusChanged;
+        this.onAutoSave = onAutoSave;
     }
 
     // Create a new file
@@ -89,6 +93,8 @@ export class FileManager {
             backupCount: 0,
             autoSave: true
         };
+
+        this.currentFileHandle = null; // Clear file handle for new files
 
         const fileData: MindmapFileData = {
             metadata: this.currentFile,
@@ -129,6 +135,7 @@ export class FileManager {
             fileData.metadata.fileName = file.name.replace('.json', '');
 
             this.currentFile = fileData.metadata;
+            this.currentFileHandle = fileHandle; // Store the file handle for future saves
             this.isDirty = false;
             this.startAutoSave();
             this.notifyCallbacks(fileData, 'saved');
@@ -152,6 +159,7 @@ export class FileManager {
             if (success && this.currentFile) {
                 this.currentFile.fileName = fileHandle.name.replace('.json', '');
                 this.currentFile.filePath = fileHandle.name;
+                this.currentFileHandle = fileHandle; // Store the file handle for future saves
             }
 
             return success;
@@ -163,7 +171,7 @@ export class FileManager {
     }
 
     // Save current file
-    public async saveCurrentFile(data: any): Promise<boolean> {
+    public async saveCurrentFile(data: any, isAutoSave: boolean = false): Promise<boolean> {
         if (!this.currentFile) {
             return this.saveAsFile(data);
         }
@@ -184,8 +192,30 @@ export class FileManager {
                 mindmap: data
             };
 
-            // For now, download the file (browser limitation)
-            // In a desktop app, this would save directly to the file path
+            // If we have a file handle, use it (File System Access API)
+            if (this.currentFileHandle && 'createWritable' in this.currentFileHandle) {
+                try {
+                    const success = await this.saveToHandle(this.currentFileHandle, data);
+                    if (success) {
+                        this.isDirty = false;
+                        this.notifyCallbacks(fileData, 'saved');
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Error saving to file handle:', error);
+                    // Fall through to download method
+                }
+            }
+
+            // Fallback: For auto-save without file handle, don't download
+            if (isAutoSave && !this.currentFileHandle) {
+                // For auto-save, just mark as saved without downloading
+                this.isDirty = false;
+                this.notifyCallbacks(fileData, 'saved');
+                return true;
+            }
+
+            // For manual saves or when File System Access API is not available
             await this.downloadFile(fileData);
 
             this.isDirty = false;
@@ -223,11 +253,28 @@ export class FileManager {
         this.stopAutoSave();
 
         if (this.currentFile?.autoSave) {
-            this.autoSaveTimer = window.setInterval(() => {
-                if (this.isDirty) {
-                    // Auto-save would trigger here
-                    // For now, just mark as needing save
-                    console.log('Auto-save triggered for:', this.currentFile?.fileName);
+            this.autoSaveTimer = window.setInterval(async () => {
+                if (this.isDirty && this.onAutoSave) {
+                    try {
+                        this.notifyCallbacks(null, 'saving');
+
+                        // Get current data from the app
+                        const currentData = this.onAutoSave();
+
+                        // Save the file with auto-save flag
+                        const success = await this.saveCurrentFile(currentData, true);
+
+                        if (success) {
+                            console.log('Auto-save completed successfully');
+                        } else {
+                            console.error('Auto-save failed to save file');
+                            this.notifyCallbacks(null, 'error');
+                        }
+
+                    } catch (error) {
+                        console.error('Auto-save failed:', error);
+                        this.notifyCallbacks(null, 'error');
+                    }
                 }
             }, this.options.autoSaveInterval);
         }

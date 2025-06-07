@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mindmap Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .debug-info {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Mindmap File Manager Debug Test</h1>
+
+    <div class="debug-info">
+        <h3>Test Save/Load Functionality</h3>
+        <button onclick="testSave()">Test Save</button>
+        <button onclick="testLoad()">Test Load</button>
+        <button onclick="testFileManager()">Test FileManager</button>
+        <button onclick="testAutoSave()">Test Auto-Save</button>
+        <div id="output"></div>
+    </div>
+
+    <script type="module">
+        import { FileManager } from './dist/fileManager.js';
+
+        window.testAutoSave = function () {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h4>Testing Auto-Save...</h4>';
+
+            try {
+                const fileManager = new FileManager();
+
+                // Set up callbacks
+                fileManager.setCallbacks(
+                    (fileData) => {
+                        output.innerHTML += '<p>📁 File changed: ' + (fileData ? fileData.metadata.fileName : 'null') + '</p>';
+                    },
+                    (status) => {
+                        output.innerHTML += '<p>💾 Save status: ' + status + '</p>';
+                    },
+                    () => {
+                        // Auto-save callback - return current data
+                        const testData = {
+                            nodes: [
+                                { id: 1, text: 'Auto-save test node', parentId: null, x: 100, y: 100, note: '', isRoot: true }
+                            ],
+                            connections: [],
+                            nodeIdCounter: 2,
+                            notesVisible: false,
+                            canvasOffset: { x: 0, y: 0 },
+                            stickyNotes: []
+                        };
+                        output.innerHTML += '<p>🔄 Auto-save callback triggered</p>';
+                        return testData;
+                    }
+                );
+
+                // Create a new file
+                const testData = {
+                    nodes: [
+                        { id: 1, text: 'Initial test node', parentId: null, x: 100, y: 100, note: '', isRoot: true }
+                    ],
+                    connections: [],
+                    nodeIdCounter: 2,
+                    notesVisible: false,
+                    canvasOffset: { x: 0, y: 0 },
+                    stickyNotes: []
+                };
+
+                const fileData = fileManager.createNewFile(testData);
+                output.innerHTML += '<p>✅ New file created: ' + fileData.metadata.fileName + '</p>';
+
+                // Mark as dirty to trigger auto-save
+                setTimeout(() => {
+                    fileManager.markDirty();
+                    output.innerHTML += '<p>📝 File marked as dirty</p>';
+                }, 1000);
+
+                output.innerHTML += '<p>⏱️ Auto-save will trigger in 3 seconds if file is dirty...</p>';
+
+            } catch (error) {
+                output.innerHTML += '<p>❌ Error: ' + error.message + '</p>';
+                console.error('Auto-save test error:', error);
+            }
+        };
+
+        window.testFileManager = function () {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h4>Testing FileManager...</h4>';
+
+            try {
+                const fileManager = new FileManager();
+                output.innerHTML += '<p>✅ FileManager created successfully</p>';
+
+                // Test creating a new file
+                const testData = {
+                    nodes: [
+                        { id: 1, text: 'Test Node', parentId: null, x: 100, y: 100, note: '', isRoot: true }
+                    ],
+                    connections: [],
+                    nodeIdCounter: 2,
+                    notesVisible: false,
+                    canvasOffset: { x: 0, y: 0 },
+                    stickyNotes: []
+                };
+
+                const fileData = fileManager.createNewFile(testData);
+                output.innerHTML += '<p>✅ New file created with data:</p>';
+                output.innerHTML += '<pre>' + JSON.stringify(fileData, null, 2) + '</pre>';
+
+                // Test file info
+                const fileInfo = fileManager.getCurrentFileInfo();
+                output.innerHTML += '<p>✅ File info: ' + JSON.stringify(fileInfo) + '</p>';
+
+            } catch (error) {
+                output.innerHTML += '<p>❌ Error: ' + error.message + '</p>';
+                console.error('FileManager test error:', error);
+            }
+        };
+
+        window.testSave = function () {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h4>Testing Save...</h4>';
+
+            const testData = {
+                nodes: [
+                    { id: 1, text: 'Root', parentId: null, x: 400, y: 300, note: 'Root note', isRoot: true },
+                    { id: 2, text: 'Child 1', parentId: 1, x: 300, y: 400, note: '', isRoot: false }
+                ],
+                connections: [
+                    { fromId: 1, toId: 2, type: 'hierarchical' }
+                ],
+                nodeIdCounter: 3,
+                notesVisible: false
+            };
+
+            const dataStr = JSON.stringify(testData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = 'test-mindmap.json';
+            link.click();
+
+            output.innerHTML += '<p>✅ Test file downloaded</p>';
+        };
+
+        window.testLoad = function () {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h4>Testing Load...</h4>';
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        output.innerHTML += '<p>✅ File loaded successfully:</p>';
+                        output.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    } catch (error) {
+                        output.innerHTML += '<p>❌ Error loading file: ' + error.message + '</p>';
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        };
+    </script>
+</body>
+
+</html>
