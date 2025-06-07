@@ -15,6 +15,8 @@
             <button id="themeBtn" class="btn btn-secondary">Roman Theme</button>
             <button id="toggleNotesBtn" class="btn btn-secondary">Show Notes</button>
             <button id="resetCanvasBtn" class="btn btn-secondary">Reset View</button>
+            <button id="connectionModeBtn" class="btn btn-neural">Neural Connect Mode</button>
+            <button id="removeConnectionBtn" class="btn btn-warning">Remove Connections</button>
             <button id="saveBtn" class="btn btn-primary">Save</button>
             <button id="loadBtn" class="btn btn-secondary">Load</button>
             <button id="exportBtn" class="btn btn-secondary">Export</button>
@@ -26,15 +28,23 @@
     <div id="helpModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>How to use the Mindmap</h2>
+            <h2>How to use the Neural Mindmap</h2>
             <ul>
                 <li><strong>Enter:</strong> Create a sibling node</li>
                 <li><strong>Ctrl + Enter:</strong> Create a child node</li>
-                <li><strong>Click on a node:</strong> Select and edit</li>
-                <li><strong>Double-click:</strong> Add/edit notes</li>
+                <li><strong>Ctrl + N:</strong> Create a new root node</li>
+                <li><strong>Ctrl + C:</strong> Toggle neural connection mode</li>
+                <li><strong>Ctrl + D:</strong> Toggle remove connection mode</li>
+                <li><strong>Click on a node:</strong> Select and edit (or connect in neural mode)</li>
+                <li><strong>Click on input text:</strong> Edit node text</li>
+                <li><strong>Double-click on node:</strong> Add/edit notes</li>
+                <li><strong>Double-click on empty canvas:</strong> Create new node at cursor</li>
+                <li><strong>Right-click on node:</strong> Customize node color and shape</li>
+                <li><strong>Neural Connect Mode:</strong> Click two nodes to create neural connections</li>
+                <li><strong>Remove Connection Mode:</strong> Click on connections to delete them</li>
+                <li><strong>Delete key:</strong> Remove selected node (when not editing text)</li>
                 <li><strong>Show Notes button:</strong> Toggle note visibility</li>
                 <li><strong>Theme button:</strong> Switch between Modern and Roman themes</li>
-                <li><strong>Delete key:</strong> Remove selected node</li>
                 <li><strong>Arrow keys:</strong> Navigate between nodes</li>
                 <li><strong>Left mouse drag:</strong> Move nodes around</li>
                 <li><strong>Middle mouse drag:</strong> Pan the entire canvas</li>

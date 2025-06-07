@@ -119,6 +119,70 @@ body.roman-theme {
     border-color: var(--border-hover);
 }
 
+.btn-warning {
+    background: #f59e0b;
+    color: white;
+    border-color: #f59e0b;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    border-color: #d97706;
+}
+
+.btn-warning.active {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+/* Neural Network Styles */
+.btn-neural {
+    background: #9333ea;
+    color: white;
+    border-color: #9333ea;
+}
+
+.btn-neural:hover {
+    background: #7c3aed;
+    border-color: #7c3aed;
+}
+
+.btn-neural.active {
+    background: #fbbf24;
+    color: #92400e;
+    border-color: #fbbf24;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+/* Connection Mode Styles */
+.connection-start {
+    border: 3px solid #9333ea !important;
+    box-shadow: 0 0 10px rgba(147, 51, 234, 0.5);
+}
+
+.connection-candidate {
+    border: 2px dashed #9333ea !important;
+    opacity: 0.7;
+}
+
+/* Node connection states */
+.mindmap-node.connection-start {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.6) !important;
+    background: #fef3c7 !important;
+}
+
+.mindmap-node.connection-candidate {
+    border-color: #9333ea !important;
+    box-shadow: 0 0 8px rgba(147, 51, 234, 0.4) !important;
+    cursor: crosshair !important;
+}
+
+.mindmap-node.connection-candidate:hover {
+    background: #f3e8ff !important;
+    transform: scale(1.05);
+}
+
 #mindmapContainer {
     position: relative;
     width: 100%;
@@ -262,9 +326,33 @@ body.roman-theme {
     fill: none;
 }
 
+.neural-connection-line {
+    stroke: #9333ea;
+    stroke-width: 2;
+    fill: none;
+    stroke-dasharray: 5, 5;
+    animation: neural-pulse 2s ease-in-out infinite;
+}
+
+@keyframes neural-pulse {
+    0%, 100% {
+        stroke-opacity: 0.6;
+        stroke-width: 2;
+    }
+    50% {
+        stroke-opacity: 1;
+        stroke-width: 2.5;
+    }
+}
+
 .roman-theme .connection-line {
     stroke-width: 2;
     stroke-dasharray: 3, 2;
+}
+
+.roman-theme .neural-connection-line {
+    stroke: #8b4513;
+    stroke-dasharray: 4, 4;
 }
 
 .modal {
@@ -399,4 +487,58 @@ body.roman-theme {
     #mindmapContainer {
         height: calc(100vh - 120px);
     }
+}
+
+/* Node Shape Styles */
+.mindmap-node.node-circle {
+    border-radius: 50%;
+    min-width: 80px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+
+.mindmap-node.node-circle input {
+    text-align: center;
+    border-radius: 50%;
+}
+
+.mindmap-node.node-diamond {
+    border-radius: 0;
+    transform: rotate(45deg);
+    min-width: 100px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mindmap-node.node-diamond input {
+    transform: rotate(-45deg);
+    text-align: center;
+    width: 70px;
+}
+
+.mindmap-node.node-rectangle {
+    border-radius: 8px; /* Default rectangle shape */
+}
+
+/* Node Customization Menu Styles */
+.node-customization-menu {
+    font-family: inherit;
+}
+
+.node-customization-menu h4 {
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+
+.node-customization-menu button {
+    transition: all 0.2s ease;
+}
+
+.node-customization-menu button:hover {
+    transform: scale(1.05);
 }
