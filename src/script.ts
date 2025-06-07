@@ -1,3 +1,6 @@
+// Import sticky notes module
+import { StickyNotesManager } from './stickyNotes.js';
+
 // TypeScript interfaces and types for the Mindmap application
 
 interface Position {
@@ -56,6 +59,7 @@ interface SessionData extends MindmapData {
     notesVisible: boolean;
     lastSaved: string;
     canvasOffset?: CanvasOffset;
+    stickyNotes?: any[]; // Add sticky notes data
 }
 
 type Theme = 'modern' | 'roman';
@@ -72,6 +76,7 @@ class MindmapApp {
     private notesVisible: boolean = false;
     private currentTheme: Theme = 'modern';
     private autoSaveInterval: number | null = null;
+    private stickyNotesManager: StickyNotesManager | null = null;
 
     // Neural connection mode
     private isConnectionMode: boolean = false;
@@ -97,6 +102,7 @@ class MindmapApp {
         this.loadTheme();
         this.loadSession();
         this.startAutoSave();
+        this.initializeStickyNotes();
     }
 
     private initializeApp(): void {
@@ -257,10 +263,10 @@ class MindmapApp {
         this.applyNodeStyling(node);
 
         if (parentId !== null) {
-            this.connections.push({ 
-                fromId: parentId, 
-                toId: nodeId, 
-                type: 'hierarchical' 
+            this.connections.push({
+                fromId: parentId,
+                toId: nodeId,
+                type: 'hierarchical'
             });
         }
 
@@ -319,7 +325,7 @@ class MindmapApp {
                 const input = target as HTMLInputElement;
                 const isEmpty = input.value.trim() === '';
                 const isAllSelected = input.selectionStart === 0 && input.selectionEnd === input.value.length;
-                
+
                 if (isEmpty || isAllSelected) {
                     e.preventDefault();
                     this.deleteNode();
@@ -335,9 +341,6 @@ class MindmapApp {
         } else if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             this.toggleConnectionMode();
-        } else if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            this.createMultipleRootNodes();
         } else if (e.key === 'd' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             this.toggleRemoveConnectionMode();
@@ -395,7 +398,7 @@ class MindmapApp {
         } else {
             this.selectedNode = null;
         }
-        
+
         this.saveSession(); // Auto-save after deletion
     }
 
@@ -880,7 +883,8 @@ class MindmapApp {
             nodeIdCounter: this.nodeIdCounter,
             notesVisible: this.notesVisible,
             lastSaved: new Date().toISOString(),
-            canvasOffset: this.canvasOffset
+            canvasOffset: this.canvasOffset,
+            stickyNotes: this.stickyNotesManager?.getStickyNotesData() || []
         };
 
         localStorage.setItem('mindmap-session', JSON.stringify(sessionData));
@@ -905,6 +909,11 @@ class MindmapApp {
                         this.notesVisible = true;
                         this.getElementByIdSafe('toggleNotesBtn').textContent = 'Hide Notes';
                         this.showAllNotes();
+                    }
+
+                    // Restore sticky notes
+                    if (data.stickyNotes && this.stickyNotesManager) {
+                        this.stickyNotesManager.loadStickyNotesData(data.stickyNotes);
                     }
 
                     console.log('Session restored from:', data.lastSaved);
@@ -980,18 +989,18 @@ class MindmapApp {
         const target = e.target as HTMLElement;
         if (target === this.mindmapContainer || target === this.nodesContainer) {
             e.preventDefault();
-            
+
             // Calculate position relative to the canvas offset
             const containerRect = this.mindmapContainer.getBoundingClientRect();
             const x = e.clientX - containerRect.left - this.canvasOffset.x;
             const y = e.clientY - containerRect.top - this.canvasOffset.y;
-            
+
             // Create a new root node at the clicked position
             const newNode = this.createNode('New Node', null, x, y);
             newNode.isRoot = true;
             newNode.element.classList.add('root');
             this.selectNode(newNode);
-            
+
             // Focus the input for immediate editing
             const input = newNode.element.querySelector('input') as HTMLInputElement;
             if (input) {
@@ -1018,7 +1027,7 @@ class MindmapApp {
     private toggleConnectionMode(): void {
         this.isConnectionMode = !this.isConnectionMode;
         const connectionBtn = this.getElementByIdSafe('connectionModeBtn');
-        
+
         if (this.isConnectionMode) {
             connectionBtn.textContent = 'Exit Connection Mode';
             connectionBtn.classList.add('active');
@@ -1039,24 +1048,24 @@ class MindmapApp {
     private toggleRemoveConnectionMode(): void {
         this.isRemoveConnectionMode = !this.isRemoveConnectionMode;
         const removeBtn = this.getElementByIdSafe('removeConnectionBtn');
-        
+
         if (this.isRemoveConnectionMode) {
             // Turn off connection mode if it's on
             if (this.isConnectionMode) {
                 this.toggleConnectionMode();
             }
-            
+
             removeBtn.textContent = 'Exit Remove Mode';
             removeBtn.classList.add('active');
             this.mindmapContainer.style.cursor = 'not-allowed';
-            
+
             // Make connections clickable for removal
             this.makeConnectionsClickable();
         } else {
             removeBtn.textContent = 'Remove Connections';
             removeBtn.classList.remove('active');
             this.mindmapContainer.style.cursor = 'default';
-            
+
             // Remove connection click handlers
             this.removeConnectionClickHandlers();
         }
@@ -1069,12 +1078,12 @@ class MindmapApp {
             line.style.cursor = 'pointer';
             line.style.strokeWidth = '4'; // Make them thicker for easier clicking
             line.setAttribute('data-connection-index', index.toString());
-            
+
             const clickHandler = (e: Event) => {
                 e.stopPropagation();
                 this.removeConnection(index);
             };
-            
+
             line.addEventListener('click', clickHandler);
             // Store the handler so we can remove it later
             (line as any)._clickHandler = clickHandler;
@@ -1088,7 +1097,7 @@ class MindmapApp {
             // Reset stroke width
             const isNeural = line.classList.contains('neural-connection-line');
             line.style.strokeWidth = isNeural ? '2' : '1.5';
-            
+
             if ((line as any)._clickHandler) {
                 line.removeEventListener('click', (line as any)._clickHandler);
                 delete (line as any)._clickHandler;
@@ -1101,14 +1110,14 @@ class MindmapApp {
             const connection = this.connections[connectionIndex];
             const fromNode = this.findNodeById(connection.fromId);
             const toNode = this.findNodeById(connection.toId);
-            
+
             const confirmMessage = `Remove ${connection.type} connection between "${fromNode?.text}" and "${toNode?.text}"?`;
-            
+
             if (confirm(confirmMessage)) {
                 this.connections.splice(connectionIndex, 1);
                 this.updateConnections();
                 this.saveSession();
-                
+
                 // Refresh clickable connections
                 if (this.isRemoveConnectionMode) {
                     setTimeout(() => this.makeConnectionsClickable(), 100);
@@ -1119,7 +1128,7 @@ class MindmapApp {
 
     private createNeuralConnection(fromNode: MindmapNode, toNode: MindmapNode): void {
         // Check if connection already exists
-        const existingConnection = this.connections.find(c => 
+        const existingConnection = this.connections.find(c =>
             c.fromId === fromNode.id && c.toId === toNode.id ||
             c.fromId === toNode.id && c.toId === fromNode.id
         );
@@ -1145,7 +1154,7 @@ class MindmapApp {
         const rootCount = this.nodes.filter(n => n.isRoot).length;
         const newX = 200 + (rootCount * 300);
         const newY = 300;
-        
+
         const newRoot = this.createNode('New Root', null, newX, newY);
         newRoot.element.classList.add('root');
         this.selectNode(newRoot);
@@ -1158,7 +1167,7 @@ class MindmapApp {
             // First node selected
             this.connectionStartNode = node;
             node.element.classList.add('connection-start');
-            
+
             // Highlight other nodes as connection candidates
             this.nodes.forEach(n => {
                 if (n.id !== node.id) {
@@ -1168,12 +1177,12 @@ class MindmapApp {
         } else if (this.connectionStartNode.id !== node.id) {
             // Second node selected - create connection
             this.createNeuralConnection(this.connectionStartNode, node);
-            
+
             // Clear highlighting
             this.nodes.forEach(n => {
                 n.element.classList.remove('connection-start', 'connection-candidate');
             });
-            
+
             this.connectionStartNode = null;
         }
     }
@@ -1200,7 +1209,7 @@ class MindmapApp {
     private applyNodeStyling(node: MindmapNode): void {
         // Remove existing shape classes
         node.element.classList.remove('node-circle', 'node-diamond', 'node-rectangle');
-        
+
         // Apply color
         if (node.color) {
             node.element.style.backgroundColor = node.color;
@@ -1244,10 +1253,10 @@ class MindmapApp {
         // Color section
         const colorSection = document.createElement('div');
         colorSection.innerHTML = '<h4 style="margin: 0 0 8px 0; font-size: 12px;">Color:</h4>';
-        
+
         const colorGrid = document.createElement('div');
         colorGrid.style.cssText = 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 12px;';
-        
+
         colors.forEach(color => {
             const colorBtn = document.createElement('button');
             colorBtn.style.cssText = `
@@ -1264,7 +1273,7 @@ class MindmapApp {
         // Shape section
         const shapeSection = document.createElement('div');
         shapeSection.innerHTML = '<h4 style="margin: 0 0 8px 0; font-size: 12px;">Shape:</h4>';
-        
+
         shapes.forEach(shape => {
             const shapeBtn = document.createElement('button');
             shapeBtn.textContent = shape.charAt(0).toUpperCase() + shape.slice(1);
@@ -1296,6 +1305,10 @@ class MindmapApp {
 
         document.body.appendChild(menu);
         setTimeout(() => document.addEventListener('click', closeMenu), 100);
+    }
+
+    private initializeStickyNotes(): void {
+        this.stickyNotesManager = new StickyNotesManager(this.mindmapContainer);
     }
 }
 

@@ -335,10 +335,13 @@ body.roman-theme {
 }
 
 @keyframes neural-pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         stroke-opacity: 0.6;
         stroke-width: 2;
     }
+
     50% {
         stroke-opacity: 1;
         stroke-width: 2.5;
@@ -522,7 +525,8 @@ body.roman-theme {
 }
 
 .mindmap-node.node-rectangle {
-    border-radius: 8px; /* Default rectangle shape */
+    border-radius: 8px;
+    /* Default rectangle shape */
 }
 
 /* Node Customization Menu Styles */
@@ -541,4 +545,238 @@ body.roman-theme {
 
 .node-customization-menu button:hover {
     transform: scale(1.05);
+}
+
+/* Sticky Notes Styles */
+.sticky-note {
+    position: absolute;
+    background: #fff59d;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+    cursor: move;
+    z-index: 1000;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    transition: box-shadow 0.2s ease;
+}
+
+.sticky-note:hover {
+    box-shadow: 3px 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sticky-note-header {
+    height: 25px;
+    background: rgba(0, 0, 0, 0.1);
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 5px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.sticky-note-header button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.sticky-note-header button:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sticky-note-text {
+    padding: 8px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.4;
+    cursor: text;
+}
+
+.sticky-note-text:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.sticky-note textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    padding: 8px;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.4;
+    display: none;
+}
+
+.sticky-note-resize {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: nw-resize;
+    background: rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+    text-align: center;
+    line-height: 15px;
+    color: white;
+    border-radius: 0 0 8px 0;
+    transition: background-color 0.2s ease;
+}
+
+.sticky-note-resize:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Sticky Note Settings Modal */
+.sticky-note-settings-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 10000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.sticky-note-settings-modal h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.sticky-note-settings-modal h4 {
+    margin: 15px 0 8px 0;
+    color: #555;
+    font-size: 1em;
+}
+
+.sticky-note-settings-modal button {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sticky-note-settings-modal button:hover {
+    background: #e0e0e0;
+    border-color: #bbb;
+}
+
+.sticky-note-settings-modal select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+.sticky-note-settings-modal input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+}
+
+/* Color grid for theme selection */
+.sticky-note-settings-modal .color-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.sticky-note-settings-modal .color-grid button {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sticky-note-settings-modal .color-grid button:hover {
+    transform: scale(1.1);
+}
+
+/* Sticky note themes */
+.sticky-note.theme-yellow {
+    background: #fff59d;
+}
+
+.sticky-note.theme-pink {
+    background: #f8bbd9;
+}
+
+.sticky-note.theme-blue {
+    background: #81d4fa;
+}
+
+.sticky-note.theme-green {
+    background: #a5d6a7;
+}
+
+.sticky-note.theme-orange {
+    background: #ffcc80;
+}
+
+.sticky-note.theme-purple {
+    background: #ce93d8;
+}
+
+.sticky-note.theme-mint {
+    background: #80cbc4;
+}
+
+.sticky-note.theme-coral {
+    background: #ffab91;
+}
+
+/* Responsive adjustments for sticky notes */
+@media (max-width: 768px) {
+    .sticky-note {
+        min-width: 150px;
+        min-height: 100px;
+    }
+
+    .sticky-note-settings-modal {
+        width: 95%;
+        padding: 15px;
+    }
+
+    .sticky-note-settings-modal .color-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Animation for new sticky notes */
+@keyframes stickyNoteAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.sticky-note {
+    animation: stickyNoteAppear 0.3s ease-out;
 }
