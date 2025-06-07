@@ -197,6 +197,11 @@ body.theme-roman {
     animation: pulse 1s infinite;
 }
 
+.save-status.auto-saving {
+    color: #3b82f6;
+    animation: subtle-pulse 2s infinite;
+}
+
 .save-status.dirty {
     color: #ef4444;
 }
@@ -214,6 +219,18 @@ body.theme-roman {
 
     50% {
         opacity: 0.5;
+    }
+}
+
+@keyframes subtle-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
     }
 }
 
@@ -385,7 +402,7 @@ body.theme-roman {
     box-shadow: 0 1px 3px var(--shadow-light);
     z-index: 3;
     opacity: 0;
-    transform: translateY(-5px);
+    margin-top: -5px;
     transition: all 0.2s ease;
     pointer-events: none;
     color: var(--text-muted);
@@ -399,7 +416,7 @@ body.theme-roman {
 
 .note-display.visible {
     opacity: 1;
-    transform: translateY(0);
+    margin-top: 0;
 }
 
 .note-display.empty {

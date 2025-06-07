@@ -55,8 +55,10 @@ export class FileManager {
     private currentFileHandle: FileSystemFileHandle | null = null; // Store file handle for auto-save
     private isDirty: boolean = false;
     private autoSaveTimer: number | null = null;
+    private debounceTimer: number | null = null; // Debounce timer for auto-save
+    private isAutoSaving: boolean = false; // Track auto-save state
     private onFileChanged?: (fileData: MindmapFileData | null) => void;
-    private onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error') => void;
+    private onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving') => void;
     private onAutoSave?: () => any; // Callback to get current data for auto-save
 
     constructor(options: Partial<FileManagerOptions> = {}) {
@@ -72,7 +74,7 @@ export class FileManager {
     // Set callbacks for file and save status changes
     public setCallbacks(
         onFileChanged?: (fileData: MindmapFileData | null) => void,
-        onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error') => void,
+        onSaveStatusChanged?: (status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving') => void,
         onAutoSave?: () => any
     ): void {
         this.onFileChanged = onFileChanged;
@@ -177,7 +179,10 @@ export class FileManager {
         }
 
         try {
-            this.notifyCallbacks(null, 'saving');
+            // For auto-save, don't show "saving" status to prevent flicker
+            if (!isAutoSave) {
+                this.notifyCallbacks(null, 'saving');
+            }
 
             // Create backup if enabled
             if (this.options.enableBackups && this.currentFile.filePath) {
@@ -235,6 +240,47 @@ export class FileManager {
             this.isDirty = true;
             this.notifyCallbacks(null, 'dirty');
         }
+
+        // Debounce auto-save to prevent excessive saves
+        this.debouncedAutoSave();
+    }
+
+    // Debounced auto-save trigger
+    private debouncedAutoSave(): void {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+
+        this.debounceTimer = window.setTimeout(() => {
+            this.triggerAutoSave();
+        }, 500); // 500ms debounce
+    }
+
+    // Trigger immediate auto-save
+    private async triggerAutoSave(): Promise<void> {
+        if (!this.isDirty || !this.onAutoSave || this.isAutoSaving) return;
+
+        try {
+            this.isAutoSaving = true;
+            this.notifyCallbacks(null, 'auto-saving');
+
+            // Get current data from the app
+            const currentData = this.onAutoSave();
+
+            // Save the file with auto-save flag
+            const success = await this.saveCurrentFile(currentData, true);
+
+            if (!success) {
+                console.error('Auto-save failed to save file');
+                this.notifyCallbacks(null, 'error');
+            }
+
+        } catch (error) {
+            console.error('Auto-save failed:', error);
+            this.notifyCallbacks(null, 'error');
+        } finally {
+            this.isAutoSaving = false;
+        }
     }
 
     // Get current file info
@@ -253,28 +299,11 @@ export class FileManager {
         this.stopAutoSave();
 
         if (this.currentFile?.autoSave) {
+            // Set up a background timer for periodic auto-save (fallback)
             this.autoSaveTimer = window.setInterval(async () => {
-                if (this.isDirty && this.onAutoSave) {
-                    try {
-                        this.notifyCallbacks(null, 'saving');
-
-                        // Get current data from the app
-                        const currentData = this.onAutoSave();
-
-                        // Save the file with auto-save flag
-                        const success = await this.saveCurrentFile(currentData, true);
-
-                        if (success) {
-                            console.log('Auto-save completed successfully');
-                        } else {
-                            console.error('Auto-save failed to save file');
-                            this.notifyCallbacks(null, 'error');
-                        }
-
-                    } catch (error) {
-                        console.error('Auto-save failed:', error);
-                        this.notifyCallbacks(null, 'error');
-                    }
+                // Only save if dirty and not already auto-saving
+                if (this.isDirty && !this.isAutoSaving) {
+                    await this.triggerAutoSave();
                 }
             }, this.options.autoSaveInterval);
         }
@@ -426,8 +455,9 @@ export class FileManager {
     }
 
     // Notify callbacks about changes
-    private notifyCallbacks(fileData: MindmapFileData | null, status: 'saved' | 'saving' | 'dirty' | 'error'): void {
-        if (this.onFileChanged && fileData) {
+    private notifyCallbacks(fileData: MindmapFileData | null, status: 'saved' | 'saving' | 'dirty' | 'error' | 'auto-saving'): void {
+        // Only trigger onFileChanged for manual operations, not auto-save
+        if (this.onFileChanged && fileData && status !== 'auto-saving') {
             this.onFileChanged(fileData);
         }
         if (this.onSaveStatusChanged) {

@@ -682,6 +682,8 @@ class MindmapApp {
 
     private updateNotePosition(node: MindmapNode): void {
         // Position note display to the right of the node
+        // Account for canvas transform by using logical coordinates
+        // Both nodes and notes are in nodesContainer which gets CSS transform applied
         const noteX = node.x + node.element.offsetWidth + 10;
         const noteY = node.y;
 
@@ -979,7 +981,8 @@ class MindmapApp {
             saveStatusElement.className = `save-status ${status}`;
             saveStatusElement.textContent = status === 'saved' ? '●' :
                 status === 'saving' ? '●' :
-                    status === 'dirty' ? '●' : '●';
+                    status === 'dirty' ? '●' :
+                        status === 'auto-saving' ? '●' : '●';
         }
     }
 
@@ -1180,6 +1183,15 @@ class MindmapApp {
         const transform = `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px)`;
         this.nodesContainer.style.transform = transform;
         this.svg.style.transform = transform;
+
+        // Note: Don't update note positions here as they're already children of nodesContainer
+        // and will be transformed automatically with their parent nodes
+    }
+
+    private updateAllNotePositions(): void {
+        this.nodes.forEach(node => {
+            this.updateNotePosition(node);
+        });
     }
 
     // Neural Connection Mode
@@ -1307,8 +1319,8 @@ class MindmapApp {
 
     // Sticky Notes Integration
     private initializeStickyNotes(): void {
-        const notesContainer = document.getElementById('notesContainer') || this.mindmapContainer;
-        this.stickyNotesManager = new StickyNotesManager(notesContainer);
+        const nodesContainer = document.getElementById('nodesContainer') || this.mindmapContainer;
+        this.stickyNotesManager = new StickyNotesManager(nodesContainer);
     }
 }
 
