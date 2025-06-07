@@ -285,6 +285,7 @@ class MindmapApp {
 
         this.updateConnections();
         this.updateNotePosition(node);
+        this.updateCanvasBounds(); // Update canvas size after creating node
         this.saveSession(); // Auto-save after creating a node
         return node;
     }
@@ -434,6 +435,7 @@ class MindmapApp {
         }
 
         this.saveSession(); // Auto-save after deletion
+        this.updateCanvasBounds(); // Update canvas size after deletion
     }
 
     private deleteNodeAndChildren(nodeId: number): void {
@@ -555,14 +557,16 @@ class MindmapApp {
         const newX = e.clientX - containerRect.left - this.dragOffset.x;
         const newY = e.clientY - containerRect.top - this.dragOffset.y;
 
-        this.selectedNode.x = Math.max(0, newX);
-        this.selectedNode.y = Math.max(0, newY);
+        // Remove boundaries - allow infinite canvas movement
+        this.selectedNode.x = newX;
+        this.selectedNode.y = newY;
 
         this.selectedNode.element.style.left = this.selectedNode.x + 'px';
         this.selectedNode.element.style.top = this.selectedNode.y + 'px';
 
         this.updateConnections();
         this.updateNotePosition(this.selectedNode);
+        this.updateCanvasBounds(); // Update canvas size based on node positions
         this.saveSession(); // Auto-save after moving
     }
 
@@ -867,6 +871,7 @@ class MindmapApp {
 
         // Update visual connections
         this.updateConnections();
+        this.updateCanvasBounds(); // Update canvas size after loading
 
         // Select root node
         const rootNode = this.nodes.find(n => n.parentId === null);
@@ -1205,6 +1210,7 @@ class MindmapApp {
         // Create a new root node at the clicked position
         if (e.target === this.mindmapContainer || e.target === this.svg || e.target === this.nodesContainer) {
             const containerRect = this.nodesContainer.getBoundingClientRect();
+            // Account for canvas transform when calculating position
             const x = e.clientX - containerRect.left - this.canvasOffset.x;
             const y = e.clientY - containerRect.top - this.canvasOffset.y;
 
@@ -1233,6 +1239,60 @@ class MindmapApp {
         this.nodes.forEach(node => {
             this.updateNotePosition(node);
         });
+    }
+
+    private updateCanvasBounds(): void {
+        if (this.nodes.length === 0) return;
+
+        // Calculate bounds of all nodes
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        this.nodes.forEach(node => {
+            const nodeRight = node.x + node.element.offsetWidth;
+            const nodeBottom = node.y + node.element.offsetHeight;
+
+            minX = Math.min(minX, node.x);
+            minY = Math.min(minY, node.y);
+            maxX = Math.max(maxX, nodeRight);
+            maxY = Math.max(maxY, nodeBottom);
+        });
+
+        // Add padding around the content
+        const padding = 100;
+        minX -= padding;
+        minY -= padding;
+        maxX += padding;
+        maxY += padding;
+
+        // Ensure minimum size (viewport size)
+        const viewportWidth = this.mindmapContainer.clientWidth;
+        const viewportHeight = this.mindmapContainer.clientHeight;
+
+        const canvasWidth = Math.max(maxX - minX, viewportWidth);
+        const canvasHeight = Math.max(maxY - minY, viewportHeight);
+
+        // Update container size
+        this.nodesContainer.style.width = canvasWidth + 'px';
+        this.nodesContainer.style.height = canvasHeight + 'px';
+        this.svg.style.width = canvasWidth + 'px';
+        this.svg.style.height = canvasHeight + 'px';
+
+        // If we have negative coordinates, we need to adjust all node positions
+        if (minX < 0 || minY < 0) {
+            const offsetX = Math.max(0, -minX);
+            const offsetY = Math.max(0, -minY);
+
+            this.nodes.forEach(node => {
+                node.x += offsetX;
+                node.y += offsetY;
+                node.element.style.left = node.x + 'px';
+                node.element.style.top = node.y + 'px';
+                this.updateNotePosition(node);
+            });
+
+            // Update connections after repositioning
+            this.updateConnections();
+        }
     }
 
     // Neural Connection Mode

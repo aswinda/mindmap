@@ -423,8 +423,9 @@ export class StickyNotesManager {
             const newX = e.clientX - canvasRect.left - this.dragOffset.x;
             const newY = e.clientY - canvasRect.top - this.dragOffset.y;
 
-            this.dragElement.x = Math.max(0, Math.min(newX, canvasRect.width - this.dragElement.width));
-            this.dragElement.y = Math.max(0, Math.min(newY, canvasRect.height - this.dragElement.height));
+            // Remove boundaries for infinite canvas - allow sticky notes to move anywhere
+            this.dragElement.x = newX;
+            this.dragElement.y = newY;
 
             this.dragElement.element.style.left = `${this.dragElement.x}px`;
             this.dragElement.element.style.top = `${this.dragElement.y}px`;

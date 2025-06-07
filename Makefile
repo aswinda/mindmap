@@ -6,6 +6,10 @@ NODE_MODULES = node_modules
 DIST_DIR = dist
 SRC_DIR = src
 PORT = 8000
+DOCKER_PORT = 3000
+DOCKER_IMAGE = mindmap-app
+DOCKER_TAG = latest
+DOCKER_CONTAINER = mindmap-container
 BROWSER_CMD = open
 TYPESCRIPT_FILES = $(wildcard $(SRC_DIR)/*.ts)
 DIST_FILES = $(TYPESCRIPT_FILES:$(SRC_DIR)/%.ts=$(DIST_DIR)/%.js)
@@ -14,7 +18,7 @@ DIST_FILES = $(TYPESCRIPT_FILES:$(SRC_DIR)/%.ts=$(DIST_DIR)/%.js)
 .DEFAULT_GOAL := help
 
 # Phony targets
-.PHONY: help install build build-prod clean dev serve start watch type-check test open browser deps check status all
+.PHONY: help install build build-prod clean dev serve start watch type-check test open browser deps check status all docker-build docker-run docker-stop docker-clean docker-deploy docker-logs docker-shell docker-compose-up docker-compose-down docker-compose-logs
 
 ## Help - Display available commands
 help:
@@ -43,6 +47,20 @@ help:
 	@echo ""
 	@echo "🎯 Shortcuts:"
 	@echo "  all          - Clean, install, build, and start"
+	@echo ""
+	@echo "🐳 Docker Commands:"
+	@echo "  docker-build     - Build Docker image"
+	@echo "  docker-run       - Run application in Docker container"
+	@echo "  docker-stop      - Stop Docker container"
+	@echo "  docker-clean     - Remove Docker container and image"
+	@echo "  docker-deploy    - Build and deploy in Docker"
+	@echo "  docker-logs      - View Docker container logs"
+	@echo "  docker-shell     - Open shell in running container"
+	@echo ""
+	@echo "🐙 Docker Compose Commands:"
+	@echo "  docker-compose-up   - Start with Docker Compose"
+	@echo "  docker-compose-down - Stop Docker Compose services"
+	@echo "  docker-compose-logs - View Docker Compose logs"
 	@echo ""
 
 ## Install npm dependencies
@@ -179,3 +197,101 @@ $(DIST_DIR):
 
 # Auto-create dist directory for build targets
 $(DIST_FILES): | $(DIST_DIR)
+
+# ================================
+# 🐳 DOCKER COMMANDS
+# ================================
+
+## Build Docker image
+docker-build:
+	@echo "🐳 Building Docker image: $(DOCKER_IMAGE):$(DOCKER_TAG)"
+	@echo "📦 This will create a multi-stage build with nginx"
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+	@echo "✅ Docker image built successfully"
+	@echo "📊 Image size:"
+	@docker images $(DOCKER_IMAGE):$(DOCKER_TAG) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+
+## Run Docker container
+docker-run: docker-build
+	@echo "🚀 Starting Docker container: $(DOCKER_CONTAINER)"
+	@echo "🌐 Application will be available at http://localhost:$(DOCKER_PORT)"
+	@docker stop $(DOCKER_CONTAINER) 2>/dev/null || true
+	@docker rm $(DOCKER_CONTAINER) 2>/dev/null || true
+	docker run -d \
+		--name $(DOCKER_CONTAINER) \
+		-p $(DOCKER_PORT):80 \
+		--restart unless-stopped \
+		$(DOCKER_IMAGE):$(DOCKER_TAG)
+	@echo "✅ Container started successfully"
+	@echo "🔗 Open http://localhost:$(DOCKER_PORT) in your browser"
+
+## Stop Docker container
+docker-stop:
+	@echo "🛑 Stopping Docker container: $(DOCKER_CONTAINER)"
+	@docker stop $(DOCKER_CONTAINER) 2>/dev/null && echo "✅ Container stopped" || echo "❌ Container not running"
+
+## Clean Docker resources
+docker-clean: docker-stop
+	@echo "🧹 Cleaning Docker resources..."
+	@docker rm $(DOCKER_CONTAINER) 2>/dev/null && echo "📦 Container removed" || echo "❌ Container not found"
+	@docker rmi $(DOCKER_IMAGE):$(DOCKER_TAG) 2>/dev/null && echo "🗑️  Image removed" || echo "❌ Image not found"
+	@echo "✅ Docker cleanup completed"
+
+## Build and deploy with Docker
+docker-deploy: docker-clean docker-run
+	@echo "🎉 Docker deployment completed!"
+	@echo "🌐 Application is running at http://localhost:$(DOCKER_PORT)"
+	@echo "📊 Container status:"
+	@docker ps | grep $(DOCKER_CONTAINER) || echo "❌ Container not running"
+
+## View Docker container logs
+docker-logs:
+	@echo "📋 Docker container logs:"
+	@docker logs -f $(DOCKER_CONTAINER) 2>/dev/null || echo "❌ Container not found or not running"
+
+## Open shell in running Docker container
+docker-shell:
+	@echo "🐚 Opening shell in Docker container..."
+	@docker exec -it $(DOCKER_CONTAINER) /bin/sh 2>/dev/null || echo "❌ Container not running"
+
+## Show Docker status
+docker-status:
+	@echo "🐳 Docker Status"
+	@echo "================"
+	@echo ""
+	@echo "📊 Container Status:"
+	@docker ps -a --filter "name=$(DOCKER_CONTAINER)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "❌ No containers found"
+	@echo ""
+	@echo "🖼️  Image Status:"
+	@docker images $(DOCKER_IMAGE) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "❌ No images found"
+	@echo ""
+
+# ================================
+# 🐙 DOCKER COMPOSE COMMANDS
+# ================================
+
+## Start services with Docker Compose
+docker-compose-up:
+	@echo "🐙 Starting services with Docker Compose..."
+	@echo "🌐 Application will be available at http://localhost:3000"
+	docker-compose up -d --build
+	@echo "✅ Services started successfully"
+	@echo "📊 Service status:"
+	@docker-compose ps
+
+## Stop Docker Compose services
+docker-compose-down:
+	@echo "🛑 Stopping Docker Compose services..."
+	docker-compose down
+	@echo "✅ Services stopped successfully"
+
+## View Docker Compose logs
+docker-compose-logs:
+	@echo "📋 Docker Compose logs:"
+	docker-compose logs -f
+
+## Restart Docker Compose services
+docker-compose-restart:
+	@echo "🔄 Restarting Docker Compose services..."
+	docker-compose restart
+	@echo "✅ Services restarted successfully"
